@@ -185,7 +185,7 @@
         setup() {
 
             let chartInstance;
-            const layout = 6;
+            const layout = new URLSearchParams(window.location.search).get('layout') || 6;
             const toast = useToast();
             const originData = ref([]);
             const tempData = ref([]);
