@@ -49,12 +49,16 @@
     </div>
     <div class="col p-2 bg-white border-1 border-gray-200 border-round-sm">
         <div class="mb-4 pb-2 border-bottom-1 border-gray-200 grid gap-2 grid-nogutter align-items-center">
-          <p-button icon="pi pi-caret-left" severity="secondary" rounded @click="changeTimeRange('previous')" :loading="loading"></p-button>
-          <div class="text-gray-600 font-bold">{{String(timeRange[0]).padStart(2,"0")}}:00 - {{String(timeRange[1]).padStart(2,"0")}}:00</div>
-          <p-button icon="pi pi-caret-right" severity="secondary" rounded @click="changeTimeRange('next')" :loading="loading"></p-button>
+            <p-button icon="pi pi-caret-left" severity="secondary" rounded @click="changeTimeRange('previous')"
+                      :loading="loading"></p-button>
+            <div class="text-gray-600 font-bold">{{String(timeRange[0]).padStart(2, "0")}}:00 -
+                {{String(timeRange[1]).padStart(2, "0")}}:00
+            </div>
+            <p-button icon="pi pi-caret-right" severity="secondary" rounded @click="changeTimeRange('next')"
+                      :loading="loading"></p-button>
         </div>
         <div style="height: calc(100vh - 100px)">
-          <canvas id="chart"></canvas>
+            <canvas id="chart"></canvas>
         </div>
     </div>
 </div>
@@ -142,42 +146,42 @@
         "裝消音材",
         "組"
     ];
-	
+
     // Process Group Map
     const processGroupMap = {
-        0 : "沖+折+旋鉚",
-        1 : "沖+折+旋鉚",
-        2 : "刮刷座點焊+矯型",
-        3 : "刮刷座點焊+矯型",
-        4 : "附件點焊+拉釘",
-        5 : "附件點焊+拉釘",
-        6 : "焊+磨+拋+防漏",
-        7 : "焊+磨+拋+防漏",
-        8 : "焊+磨+拋+防漏",
-        9 : "焊+磨+拋+防漏",
-        10 : "裝刮刷+塗油",
-        11 : "裝刮刷+塗油",
-        12 : "裝消音材+組",
-        13 : "裝消音材+組"
+        0: "沖+折+旋鉚",
+        1: "沖+折+旋鉚",
+        2: "刮刷座點焊+矯型",
+        3: "刮刷座點焊+矯型",
+        4: "附件點焊+拉釘",
+        5: "附件點焊+拉釘",
+        6: "焊+磨+拋+防漏",
+        7: "焊+磨+拋+防漏",
+        8: "焊+磨+拋+防漏",
+        9: "焊+磨+拋+防漏",
+        10: "裝刮刷+塗油",
+        11: "裝刮刷+塗油",
+        12: "裝消音材+組",
+        13: "裝消音材+組"
     }
 
     const colorList = [
-      '#9ecfe5',
-      '#f7936f',
-      '#9be1b4',
-      '#d8abe5',
-      '#fbd27b',
-      '#ff9797',
-      '#689ab7',
-      '#e58bbe',
-      '#87d5c1',
-      '#e9d785',
-      '#9ba9e1',
-      '#c2e5ab',
-      '#fb7b7b',
-      '#c3faff',
-      '#c8d56d',
-      '#58b2e7',
+        '#9ecfe5',
+        '#f7936f',
+        '#9be1b4',
+        '#d8abe5',
+        '#fbd27b',
+        '#ff9797',
+        '#689ab7',
+        '#e58bbe',
+        '#87d5c1',
+        '#e9d785',
+        '#9ba9e1',
+        '#c2e5ab',
+        '#fb7b7b',
+        '#c3faff',
+        '#c8d56d',
+        '#58b2e7',
     ]
 
     // 包裝一層通用的App
@@ -185,14 +189,19 @@
         setup() {
 
             let chartInstance;
-            const layout = new URLSearchParams(window.location.search).get('layout') || 6;
+            const layout = new URLSearchParams(window.location.search).get('layout') || '6';
+            if (layout === '5') {
+                for (let tmp = 4; tmp <= 9; tmp++) {
+                    processGroupMap[tmp] = "附件點焊+拉釘+焊+磨+拋+防漏";
+                }
+            }
             const toast = useToast();
             const originData = ref([]);
             const tempData = ref([]);
             const eventNames = ref([]);
             const eventColors = ref([]);
             const loading = ref(false);
-            const timeRange = ref([8,9]);
+            const timeRange = ref([8, 9]);
             const _labels = ref([]);
             const _datasets = ref([]);
 
@@ -246,19 +255,19 @@
 
             // 變更時間事件
             function changeTimeRange(type) {
-              const isNext = type === 'next';
+                const isNext = type === 'next';
 
-              const plus = 1;
+                const plus = 1;
 
-              if(isNext && timeRange.value[1] < 24){
-                timeRange.value = [timeRange.value[0]+plus,timeRange.value[1]+plus];
-              }
+                if (isNext && timeRange.value[1] < 24) {
+                    timeRange.value = [timeRange.value[0] + plus, timeRange.value[1] + plus];
+                }
 
-              if(!isNext && timeRange.value[0] > 0){
-                timeRange.value = [timeRange.value[0]-plus,timeRange.value[1]-plus];
-              }
+                if (!isNext && timeRange.value[0] > 0) {
+                    timeRange.value = [timeRange.value[0] - plus, timeRange.value[1] - plus];
+                }
 
-              generateChart(originData.value);
+                generateChart(originData.value);
             }
 
             // 解析工時Excel
@@ -281,15 +290,15 @@
                             spotWelding: getCellNumericValue(row.getCell(6)),
                             straightening: getCellNumericValue(row.getCell(7)),
                             accessorySpotWelding: getCellNumericValue(row.getCell(8)),
-							riveting2: getCellNumericValue(row.getCell(9)),
+                            riveting2: getCellNumericValue(row.getCell(9)),
                             welding: getCellNumericValue(row.getCell(10)),
-							grinding: getCellNumericValue(row.getCell(11)),
-							polishing: getCellNumericValue(row.getCell(12)),
-							leakPrevention: getCellNumericValue(row.getCell(13)),
+                            grinding: getCellNumericValue(row.getCell(11)),
+                            polishing: getCellNumericValue(row.getCell(12)),
+                            leakPrevention: getCellNumericValue(row.getCell(13)),
                             installScraper: getCellNumericValue(row.getCell(14)),
-							oiling: getCellNumericValue(row.getCell(15)),
+                            oiling: getCellNumericValue(row.getCell(15)),
                             installSoundproof: getCellNumericValue(row.getCell(16)),
-							materialAssembly: getCellNumericValue(row.getCell(17))
+                            materialAssembly: getCellNumericValue(row.getCell(17))
                         };
                         records.push(record);
                     });
@@ -347,21 +356,21 @@
 
                     const extensionLinePlugin = {
                         id: 'extensionLinePlugin',
-                        afterDatasetsDraw: function(chart) {
+                        afterDatasetsDraw: function (chart) {
                             const ctx = chart.ctx;
                             chart.data.datasets.forEach((dataset, datasetIndex) => {
                                 const meta = chart.getDatasetMeta(datasetIndex);
                                 if (!meta.hidden) {
                                     meta.data.forEach((element, index) => {
-                                      const model = element;
-                                      const scale = chart.scales['y'];
-                                      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-                                      ctx.lineWidth = 1;
-                                      ctx.setLineDash([3, 3]);
-                                      ctx.beginPath();
-                                      ctx.moveTo(model.x, model.y-42);
-                                      ctx.lineTo(model.x, model.y+43);
-                                      ctx.stroke();
+                                        const model = element;
+                                        const scale = chart.scales['y'];
+                                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                                        ctx.lineWidth = 1;
+                                        ctx.setLineDash([3, 3]);
+                                        ctx.beginPath();
+                                        ctx.moveTo(model.x, model.y - 42);
+                                        ctx.lineTo(model.x, model.y + 43);
+                                        ctx.stroke();
                                     });
                                 }
                             });
@@ -372,22 +381,22 @@
                     chartInstance = new Chart(chart, {
                         type: 'bar',
                         data: {
-                          labels: labels,
-                          datasets: datasets
+                            labels: labels,
+                            datasets: datasets
                         },
                         options: {
                             indexAxis: 'y',
                             plugins: {
-                                tooltip: {
-                                    callbacks: {
-                                        title: () => "",
-                                        afterBody: (items) => {
-                                          return items[0].raw[2];
-                                        },
-                                        label: (item) => datasets[item.datasetIndex].label
-                                    },
-                                    position: "nearest"
-                                },
+                                // tooltip: {
+                                //     callbacks: {
+                                //         title: () => "",
+                                //         afterBody: (items) => {
+                                //             return items[0].raw[2];
+                                //         },
+                                //         label: (item) => datasets[item.datasetIndex].label
+                                //     },
+                                //     position: "nearest"
+                                // },
                                 legend: {
                                     display: false
                                 },
@@ -423,9 +432,9 @@
                                     },
                                     stacked: true,
                                     grid: {
-                                      display: true,
-                                      drawOnChartArea: true,
-                                      drawTicks: true,
+                                        display: true,
+                                        drawOnChartArea: true,
+                                        drawTicks: true,
                                     }
                                 },
                                 y: {
@@ -446,15 +455,15 @@
             // 前置處理, 設定EventName/顏色/排序
             function preProcessData(data) {
 
-              _labels.value = [...new Set(data.map((event) => event.group))];
-              eventNames.value = [...new Set(data.map((event) => event.workOrder))];
-              eventColors.value = eventNames.value
-                      .map((val, i) => colorList[i%colorList.length])
-                      .map((value) => ({value, sort: Math.random()}))
-                      .sort((a, b) => a.sort - b.sort)
-                      .map(({value}) => value);
-              // return data;
-              return data.sort((a, b) => a.timeStart.getTime() - b.timeStart.getTime());
+                _labels.value = [...new Set(data.map((event) => event.group))];
+                eventNames.value = [...new Set(data.map((event) => event.workOrder))];
+                eventColors.value = eventNames.value
+                    .map((val, i) => colorList[i % colorList.length])
+                    .map((value) => ({value, sort: Math.random()}))
+                    .sort((a, b) => a.sort - b.sort)
+                    .map(({value}) => value);
+                // return data;
+                return data.sort((a, b) => a.timeStart.getTime() - b.timeStart.getTime());
 
             }
 
@@ -464,61 +473,61 @@
                 const labels = _labels.value;
                 const labelGrouping = [];
                 const datasets = data
-                .filter(event => event.timeStart.getTime() !== event.timeEnd.getTime())
-                .map((event) => {
-                    let start = event.timeStart.getTime();
-                    let end = event.timeEnd.getTime();
-                    let stack = undefined;
-                    let firstStackEntry = false;
+                    .filter(event => event.timeStart.getTime() !== event.timeEnd.getTime())
+                    .map((event) => {
+                        let start = event.timeStart.getTime();
+                        let end = event.timeEnd.getTime();
+                        let stack = undefined;
+                        let firstStackEntry = false;
 
-                    if (labelGrouping[event.group] === undefined) {
-                        stack = {Stack: "Stack0", LastDate: event.timeEnd};
-                        labelGrouping[event.group] = [stack];
-                        firstStackEntry = true;
-                    } else {
-                        labelGrouping[event.group].forEach((item) => {
-                            if (stack === undefined && item.LastDate.getTime() <= event.timeStart.getTime()) {
-                                stack = {...item};
-                                item.LastDate = event.timeEnd;
-                            }
-                        });
-                        if (stack === undefined) {
-                            const stackIndex = labelGrouping[event.group].length;
-                            stack = {Stack: "Stack" + stackIndex, LastDate: event.timeEnd};
-                            labelGrouping[event.group].push(stack);
+                        if (labelGrouping[event.group] === undefined) {
+                            stack = {Stack: "Stack0", LastDate: event.timeEnd};
+                            labelGrouping[event.group] = [stack];
                             firstStackEntry = true;
+                        } else {
+                            labelGrouping[event.group].forEach((item) => {
+                                if (stack === undefined && item.LastDate.getTime() <= event.timeStart.getTime()) {
+                                    stack = {...item};
+                                    item.LastDate = event.timeEnd;
+                                }
+                            });
+                            if (stack === undefined) {
+                                const stackIndex = labelGrouping[event.group].length;
+                                stack = {Stack: "Stack" + stackIndex, LastDate: event.timeEnd};
+                                labelGrouping[event.group].push(stack);
+                                firstStackEntry = true;
+                            }
                         }
-                    }
 
-                    let data = labels.map(() => null);
-                    if (!firstStackEntry) {
-                        start -= stack.LastDate.getTime();
-                        end -= stack.LastDate.getTime();
-                    }
-                    data[labels.indexOf(event.group)] = [
-                        start,
-                        end,
-                        format(event.timeStart, "HH:mm:ss") + " - " + format(event.timeEnd, "HH:mm:ss")
-                    ];
+                        let data = labels.map(() => null);
+                        if (!firstStackEntry) {
+                            start -= stack.LastDate.getTime();
+                            end -= stack.LastDate.getTime();
+                        }
+                        data[labels.indexOf(event.group)] = [
+                            start,
+                            end,
+                            format(event.timeStart, "HH:mm:ss") + " - " + format(event.timeEnd, "HH:mm:ss")
+                        ];
 
-                    return {
-                        label: event.workOrder,
-                        data: data,
-                        skipNull: true,
-                        backgroundColor: eventColors.value[eventNames.value.indexOf(event.workOrder)],
-                        stack: event.group + "_" + stack.Stack
-                    };
-                });
+                        return {
+                            label: event.workOrder,
+                            data: data,
+                            skipNull: true,
+                            backgroundColor: eventColors.value[eventNames.value.indexOf(event.workOrder)],
+                            stack: event.group + "_" + stack.Stack
+                        };
+                    });
 
                 return {labels, datasets};
             }
 
             // 依據時間過濾
             function filterData(data) {
-              return data.filter(event => {
-                const startHour = event.timeStart.getHours();
-                return startHour >= timeRange.value[0] && startHour < timeRange.value[1];
-              });
+                return data.filter(event => {
+                    const startHour = event.timeStart.getHours();
+                    return startHour >= timeRange.value[0] && startHour < timeRange.value[1];
+                });
             }
 
             // Combine records
@@ -675,12 +684,23 @@
                             if (!processTimingsMap[processNames[j]]) processTimingsMap[processNames[j]] = [];
                             processTimingsMap[processNames[j]].push(ptObj);
                             lastEndTimeMap[processNames[j]] = endTime;
-                            if (j === 1 || j === 3 || j === 5 || j === 7 || j === 8 || j === 9 || j === 11 || j === 13) {
-                              lastEndTimeMap[processNames[j - 1]] = endTime;
+                            if (j === 1 || j === 3 || j === 11 || j === 13) {
+                                lastEndTimeMap[processNames[j - 1]] = endTime;
                             }
-							// 5 人配額外參考"焊"
-                            if (j === 6 && layout === 5) {
-                              lastEndTimeMap[processNames[j - 1]] = endTime;
+                            // 5 人配額外參考"焊"
+                            if (layout === '5' && j > 4 && j <= 9) {
+                                for (let tmp = 4; tmp < j; tmp++) {
+                                    lastEndTimeMap[processNames[tmp]] = endTime;
+                                }
+                            } else {
+                                if (j === 5) {
+                                    lastEndTimeMap[processNames[j - 1]] = endTime;
+                                }
+                                if (j === 7 || j === 8 || j === 9) {
+                                    for (let tmp = 6; tmp < j; tmp++) {
+                                        lastEndTimeMap[processNames[tmp]] = endTime;
+                                    }
+                                }
                             }
                         }
                     }
