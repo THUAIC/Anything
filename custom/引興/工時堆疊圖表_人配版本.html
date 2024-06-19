@@ -387,16 +387,16 @@
                         options: {
                             indexAxis: 'y',
                             plugins: {
-                                // tooltip: {
-                                //     callbacks: {
-                                //         title: () => "",
-                                //         afterBody: (items) => {
-                                //             return items[0].raw[2];
-                                //         },
-                                //         label: (item) => datasets[item.datasetIndex].label
-                                //     },
-                                //     position: "nearest"
-                                // },
+                                tooltip: {
+                                    callbacks: {
+                                        title: () => "",
+                                        afterBody: (items) => {
+                                            return items[0].raw[2];
+                                        },
+                                        label: (items) => items.dataset.label
+                                    },
+                                    position: "nearest"
+                                },
                                 legend: {
                                     display: false
                                 },
