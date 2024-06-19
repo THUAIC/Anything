@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <link rel="stylesheet" href="https://unpkg.com/primeflex@latest/primeflex.css">
+    <link rel="stylesheet" href="https://unpkg.com/primevue/resources/themes/aura-light-teal/theme.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/primeicons@7.0.0/primeicons.css"/>
+
+    <!-- global library  -->
+    <script src="https://unpkg.com/vue@3.4.21/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@3.6.0/locale/zh-TW/cdn.js"></script>
+
+    <script src="https://unpkg.com/primevue@3.52.0/core/core.js"></script>
+    <script src="https://unpkg.com/primevue@3.52.0/fileupload/fileupload.js"></script>
+    <script src="https://unpkg.com/primevue@3.52.0/slider/slider.js"></script>
+    <script src="https://unpkg.com/primevue@3.52.0/toast/toast.js"></script>
+    <script src="https://unpkg.com/primevue@3.52.0/toastservice/toastservice.js"></script>
+    <script src="https://unpkg.com/exceljs@4.4.0/dist/exceljs.min.js"></script>
+</head>
+
+<body class="m-0">
+
+
+<div id="main" class="grid m-0 h-screen overflow-hidden bg-gray-50 p-2 gap-2">
+    <p-toast></p-toast>
+    <div class="col-fixed p-2 bg-white border-1 border-gray-200 border-round-sm w-14rem">
+
+        <h2 class="text-gray-600 font-bold mb-4 text-center">工時堆疊圖表</h2>
+        <div class="mb-4 mt-4 pt-2 border-top-1 border-gray-200"></div>
+
+        <div class="text-gray-600 font-bold mb-2">Step1. 上傳工時Excel</div>
+        <p-fileupload mode="basic" accept=".xlsx" :pt="{input :{ id : 'workingHour' }}" class="w-full"
+                      choose-label="選擇檔案" custom-upload @select="selectFile">
+        </p-fileupload>
+        <div class=" mt-4 pt-2 border-top-1 border-gray-200"></div>
+        <div class="text-gray-600 font-bold mb-2">Step2. 上傳排單Excel</div>
+        <p-fileupload mode="basic" accept=".xlsx" :pt="{input :{ id : 'schedulePlan' }}" class="w-full"
+                      choose-label="選擇檔案" custom-upload @select="selectFile">
+        </p-fileupload>
+        <div class=" mt-4 pt-2 border-top-1 border-gray-200"></div>
+        <div class="text-gray-600 font-bold mb-2">Step3. 產出圖表</div>
+        <p-button label="確認產出" class="w-full" @click="confirm" :loading="loading"></p-button>
+        <div class=" mt-4 pt-2 border-top-1 border-gray-200"></div>
+    </div>
+    <div class="col p-2 bg-white border-1 border-gray-200 border-round-sm">
+        <div class="mb-4 pb-2 border-bottom-1 border-gray-200 grid gap-2 grid-nogutter align-items-center">
+          <p-button icon="pi pi-caret-left" severity="secondary" rounded @click="changeTimeRange('previous')" :loading="loading"></p-button>
+          <div class="text-gray-600 font-bold">{{String(timeRange[0]).padStart(2,"0")}}:00 - {{String(timeRange[1]).padStart(2,"0")}}:00</div>
+          <p-button icon="pi pi-caret-right" severity="secondary" rounded @click="changeTimeRange('next')" :loading="loading"></p-button>
+        </div>
+        <div style="height: calc(100vh - 100px)">
+          <canvas id="chart"></canvas>
+        </div>
+    </div>
+</div>
+
+<script>
+    function readAsArrayBuffer(blob) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                resolve(e.target.result);
+            };
+            reader.onerror = function (e) {
+                reject(new Error('Error reading file'));
+            };
+            reader.readAsArrayBuffer(blob);
+        });
+    }
+
+    function getCellNumericValue(cell) {
+        return cell && cell.type === ExcelJS.ValueType.Number ? cell.value : 0;
+    }
+
+    function getCellStringValue(cell) {
+        if (!cell) return "";
+        switch (cell.type) {
+            case ExcelJS.ValueType.String:
+                return cell.value;
+            case ExcelJS.ValueType.Number:
+                return cell.value.toString();
+            case ExcelJS.ValueType.Date:
+                return cell.value.toISOString().split('T')[0];
+            default:
+                return "";
+        }
+    }
+
+    function getCellDateAsLocalDate(cell) {
+        if (!cell) return null;
+        if (cell.type === ExcelJS.ValueType.Date) {
+            return cell.value.toISOString().split('T')[0];
+        }
+        if (cell.type === ExcelJS.ValueType.String) {
+            try {
+                return new Date(cell.value).toISOString().split('T')[0];
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
+</script>
+
+<script>
+    const {
+        createApp,
+        ref,
+        computed,
+        onMounted,
+        watch,
+        watchEffect,
+        nextTick,
+        provide,
+        inject,
+        getCurrentInstance
+    } = Vue;
+
+    const {usePrimeVue} = primevue.config;
+    const {useToast} = primevue.usetoast;
+    const {format} = dateFns;
+
+    // Process names
+    const processNames = [
+        "沖+折",
+        "旋鉚",
+        "刮刷座點焊",
+        "矯型",
+        "附件點焊",
+        "拉釘",
+        "焊",
+        "磨",
+        "拋",
+        "防漏",
+        "裝刮刷",
+        "塗油",
+        "裝消音材",
+        "組"
+    ];
+	
+    // Process Group Map
+    const processGroupMap = {
+        0 : "沖+折+旋鉚",
+        1 : "沖+折+旋鉚",
+        2 : "刮刷座點焊+矯型",
+        3 : "刮刷座點焊+矯型",
+        4 : "附件點焊+拉釘",
+        5 : "附件點焊+拉釘",
+        6 : "焊+磨+拋+防漏",
+        7 : "焊+磨+拋+防漏",
+        8 : "焊+磨+拋+防漏",
+        9 : "焊+磨+拋+防漏",
+        10 : "裝刮刷+塗油",
+        11 : "裝刮刷+塗油",
+        12 : "裝消音材+組",
+        13 : "裝消音材+組"
+    }
+
+    const colorList = [
+      '#9ecfe5',
+      '#f7936f',
+      '#9be1b4',
+      '#d8abe5',
+      '#fbd27b',
+      '#ff9797',
+      '#689ab7',
+      '#e58bbe',
+      '#87d5c1',
+      '#e9d785',
+      '#9ba9e1',
+      '#c2e5ab',
+      '#fb7b7b',
+      '#c3faff',
+      '#c8d56d',
+      '#58b2e7',
+    ]
+
+    // 包裝一層通用的App
+    const AppWrapper = {
+        setup() {
+
+            let chartInstance;
+            const layout = 6;
+            const toast = useToast();
+            const originData = ref([]);
+            const tempData = ref([]);
+            const eventNames = ref([]);
+            const eventColors = ref([]);
+            const loading = ref(false);
+            const timeRange = ref([8,9]);
+            const _labels = ref([]);
+            const _datasets = ref([]);
+
+            const blobMap = {
+                workingHour: undefined,
+                schedulePlan: undefined,
+            };
+
+            // 選擇檔案事件
+            async function selectFile({originalEvent, files}) {
+
+                const type = originalEvent.currentTarget.id;
+                const file = files[0];
+
+                if (!file) {
+                    blobMap[type] = undefined;
+                    return;
+                }
+
+                const blob = new Blob([file], {
+                    type: file.type
+                });
+
+                try {
+                    // 暫存 blobMap, 等確認再一起解析
+                    blobMap[type] = await readAsArrayBuffer(blob);
+                } catch (error) {
+                    console.error('Error reading file:', error);
+                }
+
+            }
+
+            // 確認送出事件
+            async function confirm() {
+
+                try {
+                    if (!blobMap.workingHour || !blobMap.schedulePlan) {
+                        throw new Error('缺漏上傳工時或排單Excel');
+                    }
+                    loading.value = true;
+                    originData.value = await fetchData();
+                    originData.value = preProcessData(originData.value);
+                    generateChart(originData.value);
+                    toast.add({severity: 'success', summary: '操作完成', detail: '產出圖表完成', life: 1000});
+                } catch (e) {
+                    toast.add({severity: 'error', summary: '操作失敗', detail: e, life: 5000});
+                } finally {
+                    loading.value = false;
+                }
+            }
+
+            // 變更時間事件
+            function changeTimeRange(type) {
+              const isNext = type === 'next';
+
+              const plus = 1;
+
+              if(isNext && timeRange.value[1] < 24){
+                timeRange.value = [timeRange.value[0]+plus,timeRange.value[1]+plus];
+              }
+
+              if(!isNext && timeRange.value[0] > 0){
+                timeRange.value = [timeRange.value[0]-plus,timeRange.value[1]-plus];
+              }
+
+              generateChart(originData.value);
+            }
+
+            // 解析工時Excel
+            async function parseWorkingHourExcel() {
+                const wb = new ExcelJS.Workbook();
+                const workbook = await wb.xlsx.load(blobMap.workingHour);
+                const records = [];
+                let partNo = "";
+                workbook.eachSheet((sheet, id) => {
+                    sheet.eachRow((row, rowNumber) => {
+                        if (rowNumber < 5) return; // Skip the first four rows
+                        if (row.getCell(2).value) partNo = row.getCell(2).text;
+                        const mainPartCount = getCellNumericValue(row.getCell(3));
+                        if (mainPartCount === 0) return;
+                        const record = {
+                            partNo,
+                            mainPartCount,
+                            punchBend: getCellNumericValue(row.getCell(4)),
+                            riveting1: getCellNumericValue(row.getCell(5)),
+                            spotWelding: getCellNumericValue(row.getCell(6)),
+                            straightening: getCellNumericValue(row.getCell(7)),
+                            accessorySpotWelding: getCellNumericValue(row.getCell(8)),
+							riveting2: getCellNumericValue(row.getCell(9)),
+                            welding: getCellNumericValue(row.getCell(10)),
+							grinding: getCellNumericValue(row.getCell(11)),
+							polishing: getCellNumericValue(row.getCell(12)),
+							leakPrevention: getCellNumericValue(row.getCell(13)),
+                            installScraper: getCellNumericValue(row.getCell(14)),
+							oiling: getCellNumericValue(row.getCell(15)),
+                            installSoundproof: getCellNumericValue(row.getCell(16)),
+							materialAssembly: getCellNumericValue(row.getCell(17))
+                        };
+                        records.push(record);
+                    });
+                });
+                return records;
+            }
+
+            // 解析排單Excel
+            async function parseSchedulePlanHourExcel() {
+                const wb = new ExcelJS.Workbook();
+                const workbook = await wb.xlsx.load(blobMap.schedulePlan);
+                const records = [];
+                workbook.eachSheet((sheet, id) => {
+                    sheet.eachRow((row, rowNumber) => {
+                        if (rowNumber < 3) return; // Skip the first two rows
+                        const scheduleRecord = {
+                            specialMaterial: getCellStringValue(row.getCell(1)),
+                            serialNumber: getCellStringValue(row.getCell(2)),
+                            workOrder: getCellStringValue(row.getCell(3)),
+                            partNo: getCellStringValue(row.getCell(4)),
+                            productionQuantity: getCellNumericValue(row.getCell(5)),
+                            order: getCellStringValue(row.getCell(6)),
+                            shipmentDate: getCellDateAsLocalDate(row.getCell(7)),
+                            line: getCellStringValue(row.getCell(8)),
+                            processDescription: getCellStringValue(row.getCell(9)),
+                            workTime: getCellNumericValue(row.getCell(10)),
+                            shift: parseInt(getCellStringValue(row.getCell(11)), 10)
+                        };
+                        if (scheduleRecord.workOrder) records.push(scheduleRecord);
+                    });
+                });
+                return records;
+            }
+
+            // 建立堆疊圖表
+            function generateChart(data) {
+
+
+                tempData.value = filterData(data);
+
+                const {labels, datasets} = processData(tempData.value);
+                _labels.value = labels;
+                _datasets.value = datasets;
+
+                const chart = document.getElementById('chart');
+
+                console.time('花費時間')
+                if (chartInstance) {
+                    chartInstance.data.labels = labels;
+                    chartInstance.data.datasets = datasets;
+                    chartInstance.options.scales.x.min = Math.min(...tempData.value.map((event) => event.timeStart.getTime()));
+                    chartInstance.options.scales.x.max = Math.max(...tempData.value.map((event) => event.timeEnd.getTime()));
+                    chartInstance.update();
+                } else {
+
+                    const extensionLinePlugin = {
+                        id: 'extensionLinePlugin',
+                        afterDatasetsDraw: function(chart) {
+                            const ctx = chart.ctx;
+                            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                                const meta = chart.getDatasetMeta(datasetIndex);
+                                if (!meta.hidden) {
+                                    meta.data.forEach((element, index) => {
+                                      const model = element;
+                                      const scale = chart.scales['y'];
+                                      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                                      ctx.lineWidth = 1;
+                                      ctx.setLineDash([3, 3]);
+                                      ctx.beginPath();
+                                      ctx.moveTo(model.x, model.y-42);
+                                      ctx.lineTo(model.x, model.y+43);
+                                      ctx.stroke();
+                                    });
+                                }
+                            });
+                        }
+                    };
+                    Chart.register(extensionLinePlugin);
+
+                    chartInstance = new Chart(chart, {
+                        type: 'bar',
+                        data: {
+                          labels: labels,
+                          datasets: datasets
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            plugins: {
+                                tooltip: {
+                                    callbacks: {
+                                        title: () => "",
+                                        afterBody: (items) => {
+                                          return items[0].raw[2];
+                                        },
+                                        label: (item) => datasets[item.datasetIndex].label
+                                    },
+                                    position: "nearest"
+                                },
+                                legend: {
+                                    display: false
+                                },
+                                title: {
+                                    display: false,
+                                }
+                            },
+                            resizeDelay: 20,
+                            responsive: true,
+                            scales: {
+                                x: {
+                                    min: Math.min(...tempData.value.map((event) => event.timeStart.getTime())),
+                                    max: Math.max(...tempData.value.map((event) => event.timeEnd.getTime())),
+                                    ticks: {
+                                        autoSkip: true,
+                                        maxTicksLimit: 10
+                                    },
+                                    type: 'time',
+                                    time: {
+                                        displayFormats: {
+                                            millisecond: "HH:mm:ss",
+                                            second: "HH:mm:ss",
+                                            minute: "HH:mm:ss",
+                                            hour: "HH:mm:ss",
+                                            day: "HH:mm:ss",
+                                            week: "HH:mm:ss",
+                                            month: "HH:mm:ss",
+                                            quarter: "HH:mm:ss",
+                                            year: "HH:mm:ss"
+                                        },
+                                        unit: 'second', // 例如：使用秒作为单位
+                                        stepSize: 60  // 步长设置为60秒（1分钟）
+                                    },
+                                    stacked: true,
+                                    grid: {
+                                      display: true,
+                                      drawOnChartArea: true,
+                                      drawTicks: true,
+                                    }
+                                },
+                                y: {
+                                    stacked: true
+                                }
+                            },
+                            animation: false,
+                            showLine: false,
+                            spanGaps: true
+                        }
+                    });
+                }
+
+
+                console.timeEnd('花費時間')
+            }
+
+            // 前置處理, 設定EventName/顏色/排序
+            function preProcessData(data) {
+
+              _labels.value = [...new Set(data.map((event) => event.group))];
+              eventNames.value = [...new Set(data.map((event) => event.workOrder))];
+              eventColors.value = eventNames.value
+                      .map((val, i) => colorList[i%colorList.length])
+                      .map((value) => ({value, sort: Math.random()}))
+                      .sort((a, b) => a.sort - b.sort)
+                      .map(({value}) => value);
+              // return data;
+              return data.sort((a, b) => a.timeStart.getTime() - b.timeStart.getTime());
+
+            }
+
+            // 轉Chart格式
+            function processData(data) {
+
+                const labels = _labels.value;
+                const labelGrouping = [];
+                const datasets = data
+                .filter(event => event.timeStart.getTime() !== event.timeEnd.getTime())
+                .map((event) => {
+                    let start = event.timeStart.getTime();
+                    let end = event.timeEnd.getTime();
+                    let stack = undefined;
+                    let firstStackEntry = false;
+
+                    if (labelGrouping[event.group] === undefined) {
+                        stack = {Stack: "Stack0", LastDate: event.timeEnd};
+                        labelGrouping[event.group] = [stack];
+                        firstStackEntry = true;
+                    } else {
+                        labelGrouping[event.group].forEach((item) => {
+                            if (stack === undefined && item.LastDate.getTime() <= event.timeStart.getTime()) {
+                                stack = {...item};
+                                item.LastDate = event.timeEnd;
+                            }
+                        });
+                        if (stack === undefined) {
+                            const stackIndex = labelGrouping[event.group].length;
+                            stack = {Stack: "Stack" + stackIndex, LastDate: event.timeEnd};
+                            labelGrouping[event.group].push(stack);
+                            firstStackEntry = true;
+                        }
+                    }
+
+                    let data = labels.map(() => null);
+                    if (!firstStackEntry) {
+                        start -= stack.LastDate.getTime();
+                        end -= stack.LastDate.getTime();
+                    }
+                    data[labels.indexOf(event.group)] = [
+                        start,
+                        end,
+                        format(event.timeStart, "HH:mm:ss") + " - " + format(event.timeEnd, "HH:mm:ss")
+                    ];
+
+                    return {
+                        label: event.workOrder,
+                        data: data,
+                        skipNull: true,
+                        backgroundColor: eventColors.value[eventNames.value.indexOf(event.workOrder)],
+                        stack: event.group + "_" + stack.Stack
+                    };
+                });
+
+                return {labels, datasets};
+            }
+
+            // 依據時間過濾
+            function filterData(data) {
+              return data.filter(event => {
+                const startHour = event.timeStart.getHours();
+                return startHour >= timeRange.value[0] && startHour < timeRange.value[1];
+              });
+            }
+
+            // Combine records
+            function combineRecords(scheduleRecords, workHourRecords) {
+                const workHourMap = workHourRecords.reduce((map, record) => {
+                    if (!map[record.partNo]) map[record.partNo] = [];
+                    map[record.partNo].push(record);
+                    return map;
+                }, {});
+
+                const combinedRecords = [];
+                let lastEndTimeMap = {};
+                let shift = 0;
+
+                scheduleRecords.forEach(scheduleRecord => {
+                    // if (scheduleRecord.shift !== shift) {
+                    //     if (shift !== 0) {
+                    //         // Update idle time for previous shift
+                    //     }
+                    //     lastEndTimeMap = {};
+                    //     shift = scheduleRecord.shift;
+                    // }
+
+                    updateIdleTime(combinedRecords, lastEndTimeMap, shift);
+                    const processTimingsMap = calculateProcessTimings(scheduleRecord, workHourMap[scheduleRecord.partNo] || [], lastEndTimeMap);
+                    combinedRecords.push({scheduleRecord, processTimingsMap});
+                });
+
+                // Last update idle time
+                if (shift !== 0) {
+                    updateIdleTime(combinedRecords, lastEndTimeMap, shift);
+                }
+
+                return combinedRecords;
+            }
+
+            function flattenRecords(combinedRecords) {
+                const flattenedRecords = [];
+
+                combinedRecords.forEach(combinedRecord => {
+                    if (combinedRecord.processTimingsMap) {
+                        for (const key in combinedRecord.processTimingsMap) {
+                            if (Object.prototype.hasOwnProperty.call(combinedRecord.processTimingsMap, key)) {
+                                const processTimings = combinedRecord.processTimingsMap[key];
+                                processTimings.forEach(processTiming => {
+                                    let groupIndex = processNames.indexOf(processTiming.processName);
+                                    let groupName = processGroupMap[groupIndex];
+                                    const record = {
+                                        group: groupName,
+                                        workOrder: combinedRecord.scheduleRecord.workOrder,
+                                        partNo: combinedRecord.scheduleRecord.partNo,
+                                        specialMaterial: combinedRecord.scheduleRecord.specialMaterial,
+                                        serialNumber: combinedRecord.scheduleRecord.serialNumber,
+                                        productionQuantity: combinedRecord.scheduleRecord.productionQuantity,
+                                        order: combinedRecord.scheduleRecord.order,
+                                        shipmentDate: combinedRecord.scheduleRecord.shipmentDate ?
+                                            (typeof combinedRecord.scheduleRecord.shipmentDate === 'string' ?
+                                                combinedRecord.scheduleRecord.shipmentDate :
+                                                combinedRecord.scheduleRecord.shipmentDate.toISOString().split('T')[0]) : null,
+                                        line: combinedRecord.scheduleRecord.line,
+                                        processDescription: combinedRecord.scheduleRecord.processDescription,
+                                        workTime: combinedRecord.scheduleRecord.workTime,
+                                        shift: combinedRecord.scheduleRecord.shift,
+                                        batch: processTiming.batch,
+                                        processName: processTiming.processName,
+                                        mainPartCount: processTiming.mainPartCount,
+                                        processSec: processTiming.processSec,
+                                        timeStart: processTiming.startTime,
+                                        timeEnd: processTiming.endTime,
+                                        waitSec: processTiming.waitSec,
+                                        idleSec: processTiming.idleSec
+                                    };
+                                    flattenedRecords.push(record);
+                                });
+                            }
+                        }
+                    }
+                });
+
+                return flattenedRecords;
+            }
+
+            function updateIdleTime(combinedRecords, lastEndTimeMap, shift) {
+                const breakCount = Math.floor((shift + 7) / 12);
+                const shiftEndTime = new Date();
+                shiftEndTime.setHours(shift + 8 + breakCount, 0, 0, 0);
+                const prev = combinedRecords[combinedRecords.length - 1];
+                for (const process in lastEndTimeMap) {
+                    const lastEndTime = lastEndTimeMap[process];
+                    if (lastEndTime < shiftEndTime) {
+                        const idleSec = (shiftEndTime - lastEndTime) / 1000;
+                        const processTimingList = prev.processTimingsMap[process];
+                        if (processTimingList.length > 0) {
+                            const pt = processTimingList[processTimingList.length - 1];
+                            pt.idleSec += idleSec;
+                        }
+                    }
+                }
+            }
+
+            function calculateProcessTimings(scheduleRecord, workHourRecords, lastEndTimeMap) {
+                const processTimingsMap = {};
+                if (workHourRecords.length === 0) return processTimingsMap;
+
+                const shift = scheduleRecord.shift;
+                const breakCount = Math.floor((shift + 7) / 12);
+                let baseStartTime = new Date();
+                baseStartTime.setHours(shift + 7 + breakCount, 0, 0, 0);
+                let startTime = baseStartTime;
+                let endTime = startTime;
+
+                workHourRecords.forEach(workHourRecord => {
+                    const processSecArr = [
+                        workHourRecord.punchBend,
+                        workHourRecord.riveting1,
+                        workHourRecord.spotWelding,
+                        workHourRecord.straightening,
+                        workHourRecord.accessorySpotWelding,
+                        workHourRecord.riveting2,
+                        workHourRecord.welding,
+                        workHourRecord.grinding,
+                        workHourRecord.polishing,
+                        workHourRecord.leakPrevention,
+                        workHourRecord.installScraper,
+                        workHourRecord.oiling,
+                        workHourRecord.installSoundproof,
+                        workHourRecord.materialAssembly
+                    ];
+
+                    for (let i = 1; i <= scheduleRecord.productionQuantity; i++) {
+                        for (let j = 0; j < processSecArr.length; j++) {
+                            const lastProcessEndTime = lastEndTimeMap[processNames[j]] || startTime;
+                            const previousProcessEndTime = j > 0 ? (processTimingsMap[processNames[j - 1]] || [])
+                                .map(pt => pt.endTime)
+                                .reduce((a, b) => a > b ? a : b, startTime) : lastProcessEndTime;
+
+                            startTime = lastProcessEndTime > previousProcessEndTime ? lastProcessEndTime : previousProcessEndTime;
+                            endTime = new Date(startTime.getTime() + processSecArr[j] * 1000);
+
+                            const waitSec = lastProcessEndTime > previousProcessEndTime ? (lastProcessEndTime - previousProcessEndTime) / 1000 : 0;
+                            const idleSec = startTime > lastProcessEndTime ? (startTime - lastProcessEndTime) / 1000 : 0;
+
+                            const ptObj = {
+                                batch: `${i}/${scheduleRecord.productionQuantity}`,
+                                processName: processNames[j],
+                                processSec: processSecArr[j],
+                                mainPartCount: workHourRecord.mainPartCount,
+                                startTime: startTime,
+                                endTime: endTime,
+                                idleSec: idleSec,
+                                waitSec: waitSec
+                            };
+
+                            if (!processTimingsMap[processNames[j]]) processTimingsMap[processNames[j]] = [];
+                            processTimingsMap[processNames[j]].push(ptObj);
+                            lastEndTimeMap[processNames[j]] = endTime;
+                            if (j === 1 || j === 3 || j === 5 || j === 7 || j === 8 || j === 9 || j === 11 || j === 13) {
+                              lastEndTimeMap[processNames[j - 1]] = endTime;
+                            }
+							// 5 人配額外參考"焊"
+                            if (j === 6 && layout === 5) {
+                              lastEndTimeMap[processNames[j - 1]] = endTime;
+                            }
+                        }
+                    }
+                });
+
+                return processTimingsMap;
+            }
+
+            async function fetchData() {
+                const scheduleRecords = await parseSchedulePlanHourExcel();
+                const workHourRecords = await parseWorkingHourExcel();
+                const combineData = combineRecords(scheduleRecords, workHourRecords);
+                const flattenData = flattenRecords(combineData);
+                return flattenData;
+            }
+
+            // 初始化
+            onMounted(async () => {
+            });
+
+            return {
+                selectFile,
+                confirm,
+                loading,
+                timeRange,
+                changeTimeRange,
+            };
+        }
+    }
+
+    const mainApp = createApp(AppWrapper);
+
+    // 註冊 primevue html element
+    mainApp.use(primevue.config.default);
+    mainApp.use(primevue.toastservice);
+    mainApp.component('p-button', primevue.button);
+    mainApp.component('p-fileupload', primevue.fileupload);
+    mainApp.component('p-toast', primevue.toast);
+    mainApp.component('p-slider', primevue.slider);
+    mainApp.mount('#main');
+</script>
+</body>
+
+</html>
