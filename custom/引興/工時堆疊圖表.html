@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="lib/primevue/css/theme.css"/>
     <link rel="stylesheet" href="lib/primevue/css/primeicons.css"/>
 
-      <!-- global library  -->
+    <!-- global library  -->
     <script src="lib/vue3/vue.global.js"></script>
     <script src="lib/chartjs/chart.js"></script>
     <script src="lib/chartjs/chartjs-adapter-date-fns.js"></script>
@@ -29,7 +29,6 @@
 <div id="main" class="grid m-0 h-screen overflow-hidden bg-gray-50 p-2 gap-2">
     <p-toast></p-toast>
     <div class="col-fixed p-2 bg-white border-1 border-gray-200 border-round-sm w-14rem">
-
         <h2 class="text-gray-600 font-bold mb-4 text-center">工時堆疊圖表</h2>
         <div class="mb-4 mt-4 pt-2 border-top-1 border-gray-200"></div>
 
@@ -49,12 +48,12 @@
     </div>
     <div class="col p-2 bg-white border-1 border-gray-200 border-round-sm">
         <div class="mb-4 pb-2 border-bottom-1 border-gray-200 grid gap-2 grid-nogutter align-items-center">
-          <p-button icon="pi pi-caret-left" severity="secondary" rounded @click="changeTimeRange('previous')" :loading="loading"></p-button>
-          <div class="text-gray-600 font-bold">{{String(timeRange[0]).padStart(2,"0")}}:00 - {{String(timeRange[1]).padStart(2,"0")}}:00</div>
-          <p-button icon="pi pi-caret-right" severity="secondary" rounded @click="changeTimeRange('next')" :loading="loading"></p-button>
+            <p-button icon="pi pi-caret-left" severity="secondary" rounded @click="changeTimeRange('previous')" :loading="loading"></p-button>
+            <div class="text-gray-600 font-bold">{{String(timeRange[0]).padStart(2,"0")}}:00 - {{String(timeRange[1]).padStart(2,"0")}}:00</div>
+            <p-button icon="pi pi-caret-right" severity="secondary" rounded @click="changeTimeRange('next')" :loading="loading"></p-button>
         </div>
         <div style="height: calc(100vh - 100px)">
-          <canvas id="chart"></canvas>
+            <canvas id="chart"></canvas>
         </div>
     </div>
 </div>
@@ -137,22 +136,22 @@
     ];
 
     const colorList = [
-      '#9ecfe5',
-      '#f7936f',
-      '#9be1b4',
-      '#d8abe5',
-      '#fbd27b',
-      '#ff9797',
-      '#689ab7',
-      '#e58bbe',
-      '#87d5c1',
-      '#e9d785',
-      '#9ba9e1',
-      '#c2e5ab',
-      '#fb7b7b',
-      '#c3faff',
-      '#c8d56d',
-      '#58b2e7',
+        '#9ecfe5',
+        '#f7936f',
+        '#9be1b4',
+        '#d8abe5',
+        '#fbd27b',
+        '#ff9797',
+        '#689ab7',
+        '#e58bbe',
+        '#87d5c1',
+        '#e9d785',
+        '#9ba9e1',
+        '#c2e5ab',
+        '#fb7b7b',
+        '#c3faff',
+        '#c8d56d',
+        '#58b2e7',
     ]
 
     // 包裝一層通用的App
@@ -221,19 +220,19 @@
 
             // 變更時間事件
             function changeTimeRange(type) {
-              const isNext = type === 'next';
+                const isNext = type === 'next';
 
-              const plus = 1;
+                const plus = 1;
 
-              if(isNext && timeRange.value[1] < 24){
-                timeRange.value = [timeRange.value[0]+plus,timeRange.value[1]+plus];
-              }
+                if(isNext && timeRange.value[1] < 24){
+                    timeRange.value = [timeRange.value[0]+plus,timeRange.value[1]+plus];
+                }
 
-              if(!isNext && timeRange.value[0] > 0){
-                timeRange.value = [timeRange.value[0]-plus,timeRange.value[1]-plus];
-              }
+                if(!isNext && timeRange.value[0] > 0){
+                    timeRange.value = [timeRange.value[0]-plus,timeRange.value[1]-plus];
+                }
 
-              generateChart(originData.value);
+                generateChart(originData.value);
             }
 
             // 解析工時Excel
@@ -242,25 +241,24 @@
                 const workbook = await wb.xlsx.load(blobMap.workingHour);
                 const records = [];
                 let partNo = "";
-                workbook.eachSheet((sheet, id) => {
-                    sheet.eachRow((row, rowNumber) => {
-                        if (rowNumber < 5) return; // Skip the first four rows
-                        if (row.getCell(2).value) partNo = row.getCell(2).text;
-                        const mainPartCount = getCellNumericValue(row.getCell(3));
-                        if (mainPartCount === 0) return;
-                        const record = {
-                            partNo,
-                            mainPartCount,
-                            punchBend: getCellNumericValue(row.getCell(4)),
-                            riveting: getCellNumericValue(row.getCell(5)),
-                            spotWeldingStraightening: getCellNumericValue(row.getCell(6)),
-                            accessorySpotWeldingRiveting: getCellNumericValue(row.getCell(7)),
-                            weldingGrindingPolishingLeakPrevention: getCellNumericValue(row.getCell(8)),
-                            installScraperOiling: getCellNumericValue(row.getCell(9)),
-                            installSoundproofMaterialAssembly: getCellNumericValue(row.getCell(10))
-                        };
-                        records.push(record);
-                    });
+                const firstSheet = workbook.worksheets[0]; // Get the first sheet
+                firstSheet.eachRow((row, rowNumber) => {
+                    if (rowNumber < 5) return; // Skip the first four rows
+                    if (row.getCell(2).value) partNo = row.getCell(2).text;
+                    const mainPartCount = Number(getCellStringValue(row.getCell(3)));
+                    if (mainPartCount === 0) return;
+                    const record = {
+                        partNo,
+                        mainPartCount,
+                        punchBend: getCellNumericValue(row.getCell(4)),
+                        riveting: getCellNumericValue(row.getCell(5)),
+                        spotWeldingStraightening: getCellNumericValue(row.getCell(6)),
+                        accessorySpotWeldingRiveting: getCellNumericValue(row.getCell(7)),
+                        weldingGrindingPolishingLeakPrevention: getCellNumericValue(row.getCell(8)),
+                        installScraperOiling: getCellNumericValue(row.getCell(9)),
+                        installSoundproofMaterialAssembly: getCellNumericValue(row.getCell(10))
+                    };
+                    records.push(record);
                 });
                 return records;
             }
@@ -270,24 +268,23 @@
                 const wb = new ExcelJS.Workbook();
                 const workbook = await wb.xlsx.load(blobMap.schedulePlan);
                 const records = [];
-                workbook.eachSheet((sheet, id) => {
-                    sheet.eachRow((row, rowNumber) => {
-                        if (rowNumber < 3) return; // Skip the first two rows
-                        const scheduleRecord = {
-                            specialMaterial: getCellStringValue(row.getCell(1)),
-                            serialNumber: getCellStringValue(row.getCell(2)),
-                            workOrder: getCellStringValue(row.getCell(3)),
-                            partNo: getCellStringValue(row.getCell(4)),
-                            productionQuantity: getCellNumericValue(row.getCell(5)),
-                            order: getCellStringValue(row.getCell(6)),
-                            shipmentDate: getCellDateAsLocalDate(row.getCell(7)),
-                            line: getCellStringValue(row.getCell(8)),
-                            processDescription: getCellStringValue(row.getCell(9)),
-                            workTime: getCellNumericValue(row.getCell(10)),
-                            shift: parseInt(getCellStringValue(row.getCell(11)), 10)
-                        };
-                        if (scheduleRecord.workOrder) records.push(scheduleRecord);
-                    });
+                const firstSheet = workbook.worksheets[0]; // Get the first sheet
+                firstSheet.eachRow((row, rowNumber) => {
+                    if (rowNumber < 3) return; // Skip the first two rows
+                    const scheduleRecord = {
+                        specialMaterial: getCellStringValue(row.getCell(1)),
+                        serialNumber: getCellStringValue(row.getCell(2)),
+                        workOrder: getCellStringValue(row.getCell(3)),
+                        partNo: getCellStringValue(row.getCell(4)),
+                        productionQuantity: getCellNumericValue(row.getCell(5)),
+                        order: getCellStringValue(row.getCell(6)),
+                        shipmentDate: getCellDateAsLocalDate(row.getCell(7)),
+                        line: getCellStringValue(row.getCell(8)),
+                        processDescription: getCellStringValue(row.getCell(9)),
+                        workTime: getCellNumericValue(row.getCell(10)),
+                        shift: parseInt(getCellStringValue(row.getCell(11)), 10)
+                    };
+                    if (scheduleRecord.workOrder) records.push(scheduleRecord);
                 });
                 return records;
             }
@@ -321,15 +318,15 @@
                                 const meta = chart.getDatasetMeta(datasetIndex);
                                 if (!meta.hidden) {
                                     meta.data.forEach((element, index) => {
-                                      const model = element;
-                                      const scale = chart.scales['y'];
-                                      ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-                                      ctx.lineWidth = 1;
-                                      ctx.setLineDash([3, 3]);
-                                      ctx.beginPath();
-                                      ctx.moveTo(model.x, model.y-42);
-                                      ctx.lineTo(model.x, model.y+43);
-                                      ctx.stroke();
+                                        const model = element;
+                                        const scale = chart.scales['y'];
+                                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                                        ctx.lineWidth = 1;
+                                        ctx.setLineDash([3, 3]);
+                                        ctx.beginPath();
+                                        ctx.moveTo(model.x, model.y-42);
+                                        ctx.lineTo(model.x, model.y+43);
+                                        ctx.stroke();
                                     });
                                 }
                             });
@@ -340,8 +337,8 @@
                     chartInstance = new Chart(chart, {
                         type: 'bar',
                         data: {
-                          labels: labels,
-                          datasets: datasets
+                            labels: labels,
+                            datasets: datasets
                         },
                         options: {
                             indexAxis: 'y',
@@ -350,7 +347,7 @@
                                     callbacks: {
                                         title: () => "",
                                         afterBody: (items) => {
-                                          return items[0].raw[2];
+                                            return items[0].raw[2];
                                         },
                                         label: (item) => datasets[item.datasetIndex].label
                                     },
@@ -391,9 +388,9 @@
                                     },
                                     stacked: true,
                                     grid: {
-                                      display: true,
-                                      drawOnChartArea: true,
-                                      drawTicks: true,
+                                        display: true,
+                                        drawOnChartArea: true,
+                                        drawTicks: true,
                                     }
                                 },
                                 y: {
@@ -414,15 +411,15 @@
             // 前置處理, 設定EventName/顏色/排序
             function preProcessData(data) {
 
-              _labels.value = [...new Set(data.map((event) => event.group))];
-              eventNames.value = [...new Set(data.map((event) => event.workOrder))];
-              eventColors.value = eventNames.value
-                      .map((val, i) => colorList[i%colorList.length])
-                      .map((value) => ({value, sort: Math.random()}))
-                      .sort((a, b) => a.sort - b.sort)
-                      .map(({value}) => value);
-              // return data;
-              return data.sort((a, b) => a.timeStart.getTime() - b.timeStart.getTime());
+                _labels.value = [...new Set(data.map((event) => event.group))];
+                eventNames.value = [...new Set(data.map((event) => event.workOrder))];
+                eventColors.value = eventNames.value
+                    .map((val, i) => colorList[i%colorList.length])
+                    .map((value) => ({value, sort: Math.random()}))
+                    .sort((a, b) => a.sort - b.sort)
+                    .map(({value}) => value);
+                // return data;
+                return data.sort((a, b) => a.timeStart.getTime() - b.timeStart.getTime());
 
             }
 
@@ -432,61 +429,61 @@
                 const labels = _labels.value;
                 const labelGrouping = [];
                 const datasets = data
-                .filter(event => event.timeStart.getTime() !== event.timeEnd.getTime())
-                .map((event) => {
-                    let start = event.timeStart.getTime();
-                    let end = event.timeEnd.getTime();
-                    let stack = undefined;
-                    let firstStackEntry = false;
+                    .filter(event => event.timeStart.getTime() !== event.timeEnd.getTime())
+                    .map((event) => {
+                        let start = event.timeStart.getTime();
+                        let end = event.timeEnd.getTime();
+                        let stack = undefined;
+                        let firstStackEntry = false;
 
-                    if (labelGrouping[event.group] === undefined) {
-                        stack = {Stack: "Stack0", LastDate: event.timeEnd};
-                        labelGrouping[event.group] = [stack];
-                        firstStackEntry = true;
-                    } else {
-                        labelGrouping[event.group].forEach((item) => {
-                            if (stack === undefined && item.LastDate.getTime() <= event.timeStart.getTime()) {
-                                stack = {...item};
-                                item.LastDate = event.timeEnd;
-                            }
-                        });
-                        if (stack === undefined) {
-                            const stackIndex = labelGrouping[event.group].length;
-                            stack = {Stack: "Stack" + stackIndex, LastDate: event.timeEnd};
-                            labelGrouping[event.group].push(stack);
+                        if (labelGrouping[event.group] === undefined) {
+                            stack = {Stack: "Stack0", LastDate: event.timeEnd};
+                            labelGrouping[event.group] = [stack];
                             firstStackEntry = true;
+                        } else {
+                            labelGrouping[event.group].forEach((item) => {
+                                if (stack === undefined && item.LastDate.getTime() <= event.timeStart.getTime()) {
+                                    stack = {...item};
+                                    item.LastDate = event.timeEnd;
+                                }
+                            });
+                            if (stack === undefined) {
+                                const stackIndex = labelGrouping[event.group].length;
+                                stack = {Stack: "Stack" + stackIndex, LastDate: event.timeEnd};
+                                labelGrouping[event.group].push(stack);
+                                firstStackEntry = true;
+                            }
                         }
-                    }
 
-                    let data = labels.map(() => null);
-                    if (!firstStackEntry) {
-                        start -= stack.LastDate.getTime();
-                        end -= stack.LastDate.getTime();
-                    }
-                    data[labels.indexOf(event.group)] = [
-                        start,
-                        end,
-                        format(event.timeStart, "HH:mm:ss") + " - " + format(event.timeEnd, "HH:mm:ss")
-                    ];
+                        let data = labels.map(() => null);
+                        if (!firstStackEntry) {
+                            start -= stack.LastDate.getTime();
+                            end -= stack.LastDate.getTime();
+                        }
+                        data[labels.indexOf(event.group)] = [
+                            start,
+                            end,
+                            format(event.timeStart, "HH:mm:ss") + " - " + format(event.timeEnd, "HH:mm:ss")
+                        ];
 
-                    return {
-                        label: event.workOrder,
-                        data: data,
-                        skipNull: true,
-                        backgroundColor: eventColors.value[eventNames.value.indexOf(event.workOrder)],
-                        stack: event.group + "_" + stack.Stack
-                    };
-                });
+                        return {
+                            label: event.workOrder,
+                            data: data,
+                            skipNull: true,
+                            backgroundColor: eventColors.value[eventNames.value.indexOf(event.workOrder)],
+                            stack: event.group + "_" + stack.Stack
+                        };
+                    });
 
                 return {labels, datasets};
             }
 
             // 依據時間過濾
             function filterData(data) {
-              return data.filter(event => {
-                const startHour = event.timeStart.getHours();
-                return startHour >= timeRange.value[0] && startHour < timeRange.value[1];
-              });
+                return data.filter(event => {
+                    const startHour = event.timeStart.getHours();
+                    return startHour >= timeRange.value[0] && startHour < timeRange.value[1];
+                });
             }
 
             // Combine records
@@ -536,17 +533,17 @@
                                     let groupName = processTiming.processName;
                                     // layout 沖+折/旋鉚 合併
                                     if (groupIndex === 1) {
-                                      groupName = processNames[groupIndex - 1] + ' && ' + groupName
+                                        groupName = processNames[groupIndex - 1] + ' && ' + groupName
                                     } else if (groupIndex === 0) {
-                                      groupName = groupName + ' && ' + processNames[groupIndex + 1]
+                                        groupName = groupName + ' && ' + processNames[groupIndex + 1]
                                     }
                                     // layout 附件點焊+拉釘/焊+磨+拋+防漏 合併
                                     if (layout === 5) {
-                                      if (groupIndex === 4) {
-                                        groupName = processNames[groupIndex - 1] + ' && ' + groupName
-                                      } else if (groupIndex === 3) {
-                                        groupName = groupName + ' && ' + processNames[groupIndex + 1]
-                                      }
+                                        if (groupIndex === 4) {
+                                            groupName = processNames[groupIndex - 1] + ' && ' + groupName
+                                        } else if (groupIndex === 3) {
+                                            groupName = groupName + ' && ' + processNames[groupIndex + 1]
+                                        }
                                     }
                                     const record = {
                                         group: groupName,
@@ -651,12 +648,12 @@
                             processTimingsMap[processNames[j]].push(ptObj);
                             lastEndTimeMap[processNames[j]] = endTime;
                             if (j === 1) {
-                              // 沖+折 要參考上一次 旋鉚 完工時間
-                              lastEndTimeMap[processNames[j - 1]] = endTime;
+                                // 沖+折 要參考上一次 旋鉚 完工時間
+                                lastEndTimeMap[processNames[j - 1]] = endTime;
                             }
                             if (j === 4 && layout === 5) {
-                              // 附件點焊+拉釘 要參考上一次 焊+磨+拋+防漏 完工時間
-                              lastEndTimeMap[processNames[j - 1]] = endTime;
+                                // 附件點焊+拉釘 要參考上一次 焊+磨+拋+防漏 完工時間
+                                lastEndTimeMap[processNames[j - 1]] = endTime;
                             }
                         }
                     }
